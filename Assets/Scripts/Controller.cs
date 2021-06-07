@@ -248,17 +248,78 @@ public class Controller : MonoBehaviour
 
         //La ponemos rosa porque acabamos de hacer un reset
         tiles[indexcurrentTile].current = true;
+        tiles[indexcurrentTile].visited = true;
 
         //Cola para el BFS
         Queue<Tile> nodes = new Queue<Tile>();
 
         //TODO: Implementar BFS. Los nodos seleccionables los ponemos como selectable=true
-        //Tendrás que cambiar este código por el BFS
-        for(int i = 0; i < Constants.NumTiles; i++)
+
+        // indices ocupados por los otros cops
+        List<int> indicesCops = new List<int>();
+        foreach (GameObject copTmp in cops)
         {
-            tiles[i].selectable = true;
+            indicesCops.Add(copTmp.GetComponent<CopMove>().currentTile);
+           
         }
 
+        foreach(Tile t in tiles)
+        {
+            t.selectable = false;
+        }
+        
+
+        foreach (int indice in tiles[indexcurrentTile].adjacency)
+        {
+
+            tiles[indice].parent = tiles[indexcurrentTile];
+            nodes.Enqueue(tiles[indice]);
+            
+            
+        }
+
+        while(nodes.Count > 0)
+        {
+            Tile tmp = nodes.Dequeue();
+            if (!tmp.visited)
+            {
+                // evitamos que no recorra la casilla del policia
+                if (indicesCops.Contains(tmp.numTile))
+                {
+                    tmp.visited = true;
+                    tmp.distance = 999;
+                }
+                else
+                {
+                    tmp.visited = true;
+                    tmp.distance = tmp.parent.distance + 1;
+
+                    foreach (int indice in tmp.adjacency)
+                    {
+
+                        // no puede ir a donde estan ocupadas por ningun cop, esto le incluye a ella misma
+                        if (!tiles[indice].visited)
+                        {
+                            tiles[indice].parent = tmp;
+                            nodes.Enqueue(tiles[indice]);
+                        }
+
+                    }
+                }
+
+                
+
+            }
+        }
+        
+        foreach(Tile t in tiles){
+            // no puede ir a donde estan ocupadas por ningun cop, esto le incluye a ella misma
+
+            if (t.distance <= 2 && !indicesCops.Contains(t.numTile))
+            {
+                t.selectable = true;
+            }
+        }
 
     }
     

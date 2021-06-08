@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -184,6 +185,8 @@ public class Controller : MonoBehaviour
 
     }
 
+    Dictionary<Tile, List<int>> adyacentesRobberConDistancia = new Dictionary<Tile, List<int>>();
+
     public void RobberTurn()
     {
         clickedTile = robber.GetComponent<RobberMove>().currentTile;
@@ -195,7 +198,92 @@ public class Controller : MonoBehaviour
         - Movemos al caco a esa casilla
         - Actualizamos la variable currentTile del caco a la nueva casilla
         */
-        robber.GetComponent<RobberMove>().MoveToTile(tiles[robber.GetComponent<RobberMove>().currentTile]);
+
+
+        adyacentesRobberConDistancia.Clear();
+
+        foreach (Tile t in tiles)
+        {
+            if (t.selectable)
+            {
+                adyacentesRobberConDistancia.Add(t,new List<int>());
+            }
+        }
+
+
+        // se calcula la distancia respecto al cop 0
+        clickedCop = 0;
+        clickedTile = cops[0].GetComponent<CopMove>().currentTile;
+        tiles[clickedTile].current = true;
+
+        ResetTiles();
+        FindSelectableTiles(true);
+
+        // se calcula la distancia respecto al cop 1
+        clickedCop = 1;
+        clickedTile = cops[1].GetComponent<CopMove>().currentTile;
+        tiles[clickedTile].current = true;
+
+        ResetTiles();
+        FindSelectableTiles(true);
+
+
+
+
+        Debug.Log("Adyacentes Robber y distancias respecto a los cops--------------: "+adyacentesRobberConDistancia.Count);
+        Tile tileToMove = new Tile(); 
+        int maxDistance = 0;
+        foreach (Tile t in adyacentesRobberConDistancia.Keys)
+        {
+            // si la suma de las dos distancias es mayor que la max distance, es el tile
+            if(adyacentesRobberConDistancia[t].Sum() > maxDistance)
+            {
+
+                tileToMove = t;
+                maxDistance = adyacentesRobberConDistancia[t].Sum();
+
+            }else if(adyacentesRobberConDistancia[t].Sum() == maxDistance)
+            {
+                Debug.Log("Tile: "+t.numTile+"-----");
+                foreach (int distanciasEnNuevoTile in adyacentesRobberConDistancia[t])
+                {
+                    Debug.Log(distanciasEnNuevoTile);
+                }
+
+                Debug.Log("Tile: " + tileToMove.numTile + "-----");
+                foreach (int distanciasEnNuevoTile in adyacentesRobberConDistancia[tileToMove])
+                {
+                    Debug.Log(distanciasEnNuevoTile);
+                }
+
+                // si es igual, sera el tile to move si tiene mayores numeros (asi evitamos que escoga el que este al lado de un coop
+                bool isMasLejos = true;
+                foreach (int distanciasEnNuevoTile in adyacentesRobberConDistancia[t]) // 8 11
+                {
+                    if (distanciasEnNuevoTile < adyacentesRobberConDistancia[tileToMove][0]
+                        && distanciasEnNuevoTile < adyacentesRobberConDistancia[tileToMove][1])
+                    {
+                        isMasLejos = false;
+                    }
+                   
+                        
+                }
+                if (isMasLejos)
+                {
+                    tileToMove = t;
+                }
+               
+            }
+        }
+
+        ResetTiles();
+
+        //se movera a una casilla aleatoria de entre las mas lejos
+       
+        Debug.Log("Robber en: "+ robber.GetComponent<RobberMove>().currentTile + "se mueve a:"+tileToMove.numTile);
+        robber.GetComponent<RobberMove>().currentTile = tileToMove.numTile;
+        robber.GetComponent<RobberMove>().MoveToTile(tileToMove);
+        
     }
 
     public void EndGame(bool end)
@@ -239,7 +327,7 @@ public class Controller : MonoBehaviour
     public void FindSelectableTiles(bool cop)
     {
                  
-        int indexcurrentTile;        
+        int indexcurrentTile;
 
         if (cop==true)
             indexcurrentTile = cops[clickedCop].GetComponent<CopMove>().currentTile;
@@ -263,12 +351,7 @@ public class Controller : MonoBehaviour
            
         }
 
-        foreach(Tile t in tiles)
-        {
-            t.selectable = false;
-        }
-        
-
+      
         foreach (int indice in tiles[indexcurrentTile].adjacency)
         {
 
@@ -287,7 +370,7 @@ public class Controller : MonoBehaviour
                 if (indicesCops.Contains(tmp.numTile))
                 {
                     tmp.visited = true;
-                    tmp.distance = 999;
+                    tmp.distance = tmp.parent.distance + 1;
                 }
                 else
                 {
@@ -312,9 +395,16 @@ public class Controller : MonoBehaviour
             }
         }
         
-        foreach(Tile t in tiles){
-            // no puede ir a donde estan ocupadas por ningun cop, esto le incluye a ella misma
+        
+        foreach (Tile t in tiles){
 
+            if (cop && adyacentesRobberConDistancia.Count > 0 && adyacentesRobberConDistancia.ContainsKey(t))
+            {
+                adyacentesRobberConDistancia[t].Add(t.distance);
+                
+            }
+
+            // no puede ir a donde estan ocupadas por ningun cop, esto le incluye a ella misma
             if (t.distance <= 2 && !indicesCops.Contains(t.numTile))
             {
                 t.selectable = true;
